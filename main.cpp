@@ -46,32 +46,26 @@ int main(){
     }
     
     GLfloat vertices[24] = {
-    0.5, 0.5, 0.5,
-    0.5, -0.5, 0.5,
-    0.5, -0.5, -0.5,
-    0.5, 0.5, -0.5,
-    -0.5, 0.5, 0.5,
-    -0.5, -0.5, 0.5,
-    -0.5, -0.5, -0.5,
-    -0.5, 0.5, -0.5};
+    1.0, 1.0, 1.0,
+    -1.0, 1.0, 1.0,
+    1.0, -1.0, 1.0,
+    -1.0, -1.0, 1.0,
+    1.0, 1.0, -1.0,
+    -1.0, 1.0, -1.0,
+    1.0, -1.0, -1.0,
+    -1.0, -1.0, -1.0};
     
     GLfloat colors[24] = {
     0.0, 1.0, 0.0,
-    0.0, 0.0, 0.0,
+    1.0, 0.0, 0.0,
     1.0, 0.0, 1.0,
     0.0, 1.0, 1.0,
-    0.0, 1.0, 0.0,
+    0.0, 0.0, 1.0,
     0.0, 0.0, 0.0,
-    1.0, 0.0, 1.0,
-    0.0, 1.0, 1.0};
+    1.0, 1.0, 0.0,
+    1.0, 1.0, 1.0};
     
-    GLuint indices[24] = {
-    0, 1, 2, 3,
-    4, 5, 6, 7,
-    0, 1, 5, 4,
-    2, 3, 7, 6,
-    0, 3, 7, 4,
-    1, 2, 6, 5};
+    GLuint indices[14] = {3, 2, 7, 6, 4, 2, 0, 3, 1, 7, 5, 4, 1, 0};
     
     GLfloat *pixelVertices = new GLfloat[2 * SCREEN_WIDTH * SCREEN_HEIGHT];
     int count = 0;
@@ -107,7 +101,7 @@ int main(){
     windows[0].enable3D(true);
     windows[0].setVertices(vertices, 24);
     windows[0].setColors(colors, 24);
-    windows[0].setIndices(indices, 24);
+    windows[0].setIndices(indices, 14);
     windows[0].loadProgram("3DShader.vert", "3DShader.frag");
 
     bool quit = false;

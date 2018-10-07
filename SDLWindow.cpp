@@ -190,7 +190,7 @@ void SDLWindow::render(){
 
     glClearColor(0.0, 0.0, 0.0, 1.0);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    glDrawElements(GL_QUADS, indSize, GL_UNSIGNED_INT, NULL);
+    glDrawElements(GL_TRIANGLE_STRIP, indSize, GL_UNSIGNED_INT, NULL);
     
     glUseProgram(0);
 
