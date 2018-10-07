@@ -37,7 +37,7 @@ int main(){
     SDLWindow windows[2];
     unordered_map<int, int> IDMap;
     
-    for (int i = 0; i < 2; i++){
+    for (int i = 1; i >= 0; i--){
         if (!windows[i].init()){
             cout << "Window initialization failed" << endl;
             return 0;
@@ -73,7 +73,7 @@ int main(){
     0, 3, 7, 4,
     1, 2, 6, 5};
     
-    GLfloat pixelVertices[2 * SCREEN_WIDTH * SCREEN_HEIGHT];
+    GLfloat *pixelVertices = new GLfloat[2 * SCREEN_WIDTH * SCREEN_HEIGHT];
     int count = 0;
     for (int i = 0; i < SCREEN_HEIGHT; i++){
         for (int j = 0; j < SCREEN_WIDTH; j++){
@@ -82,28 +82,38 @@ int main(){
         }
     }
 
-    GLfloat pixelColors[3 * SCREEN_WIDTH * SCREEN_HEIGHT];
+    GLfloat *pixelColors = new GLfloat[3 * SCREEN_WIDTH * SCREEN_HEIGHT];
 
-    GLuint pixelIndices[SCREEN_WIDTH * SCREEN_HEIGHT];
+    GLuint *pixelIndices = new GLuint[SCREEN_WIDTH * SCREEN_HEIGHT];
     for (int i = 0; i < SCREEN_WIDTH * SCREEN_HEIGHT; i++){
         pixelIndices[i] = i;
     }
     
+    GLfloat *pixelDepths = new GLfloat[SCREEN_WIDTH * SCREEN_HEIGHT];
+
+    SDL_DisplayMode DM;
+    SDL_GetCurrentDisplayMode(0, &DM);
+
+    windows[1].setTitle("Warped Image");
+    windows[1].setPosition(DM.w / 2, DM.h / 2 - SCREEN_HEIGHT / 2);
+    windows[1].setWindowSize(SCREEN_WIDTH, SCREEN_HEIGHT);
     windows[1].setVertices(pixelVertices, 2 * SCREEN_WIDTH * SCREEN_HEIGHT);
     windows[1].setIndices(pixelIndices, SCREEN_WIDTH * SCREEN_HEIGHT);
     windows[1].loadProgram("2DShader.vert", "2DShader.frag");
-    windows[1].setWindowSize(SCREEN_WIDTH, SCREEN_HEIGHT);
     
+    windows[0].setTitle("Original Image");
+    windows[0].setPosition(DM.w / 2 - SCREEN_WIDTH, DM.h / 2 - SCREEN_HEIGHT / 2);
+    windows[0].setWindowSize(SCREEN_WIDTH, SCREEN_HEIGHT);
     windows[0].enable3D(true);
     windows[0].setVertices(vertices, 24);
     windows[0].setColors(colors, 24);
     windows[0].setIndices(indices, 24);
     windows[0].loadProgram("3DShader.vert", "3DShader.frag");
-    windows[0].setWindowSize(SCREEN_WIDTH, SCREEN_HEIGHT);
 
     bool quit = false;
     SDL_Event e;
     SDL_StartTextInput();
+    SDL_SetRelativeMouseMode(SDL_TRUE);
     while (!quit){
         int x = 0, y = 0;
         SDL_GetRelativeMouseState(&x, &y);
@@ -118,25 +128,34 @@ int main(){
         }
         
         for (int i = 0; i < 2; i++){
-            if (windows[i].isFocused()){
+            if (windows[i].isFocused() && windows[i].isMouseFocused()){
                 windows[i].mouseMotion(x, y);
             }
         }
         
-        if (!windows[0].isShown()){
+        if (!(windows[0].isShown() && windows[1].isShown())){
             quit = true;
         }
         else {
             windows[0].render();
-            windows[0].readColors(pixelColors, sizeof(pixelColors));
+            windows[0].readColors(pixelColors, sizeof(GLfloat) * 3 * SCREEN_WIDTH * SCREEN_HEIGHT);
+            windows[0].readDepths(pixelDepths, sizeof(GLfloat) * SCREEN_WIDTH * SCREEN_HEIGHT);
             if (windows[1].isShown()){
                 windows[1].setColors(pixelColors, 3 * SCREEN_WIDTH * SCREEN_HEIGHT);
-                windows[1].render();
+                windows[1].setDepths(pixelDepths, SCREEN_WIDTH * SCREEN_HEIGHT);
+                windows[1].render2D(windows[0].getMVP());
             }
         }
     }
     
     SDL_StopTextInput();
+    for (int i = 0; i < 2; i++){
+        windows[i].close();
+    }
+    
+    delete[] pixelVertices;
+    delete[] pixelColors;
+    delete[] pixelIndices;
 
     return 0;
 }

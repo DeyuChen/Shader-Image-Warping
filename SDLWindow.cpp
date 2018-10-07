@@ -51,16 +51,37 @@ bool SDLWindow::init(){
     }
 
     windowID = SDL_GetWindowID(window);
-    string title("Window ");
-    title += to_string(windowID);
-    SDL_SetWindowTitle(window, title.c_str());
 
     glGenVertexArrays(1, &vao);
-    glGenBuffers(2, vbo);
+    glGenBuffers(3, vbo);
     glGenBuffers(1, &ibo);
+
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+
+    gluPerspective(45.0f, (GLfloat)width / (GLfloat)height, MIN_DISTANCE, MAX_DISTANCE);
+
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
     
     return true;
 }
+
+void SDLWindow::close(){
+    if (window != NULL){
+        SDL_DestroyWindow(window);
+        window = NULL;
+    }
+}
+
+void SDLWindow::setTitle(string title){
+    SDL_SetWindowTitle(window, title.c_str());
+}
+
+void SDLWindow::setPosition(int x, int y){
+    SDL_SetWindowPosition(window, x, y);
+}
+
 
 void SDLWindow::setWindowSize(int w, int h){
     SDL_GL_MakeCurrent(window, context);
@@ -83,17 +104,7 @@ void SDLWindow::setWindowSize(int w, int h){
 }
 
 void SDLWindow::enable3D(bool enable){
-    SDL_GL_MakeCurrent(window, context);
-
     depthEnabled = enable;
-
-    glMatrixMode(GL_PROJECTION);
-    glLoadIdentity();
-
-    gluPerspective(45.0f, (GLfloat)width / (GLfloat)height, MIN_DISTANCE, MAX_DISTANCE);
-
-    glMatrixMode(GL_MODELVIEW);
-    glLoadIdentity();
 }
 
 void SDLWindow::handleEvent(SDL_Event& e, int x, int y){
@@ -113,6 +124,14 @@ void SDLWindow::handleEvent(SDL_Event& e, int x, int y){
 
             case SDL_WINDOWEVENT_FOCUS_LOST:
                 focused = false;
+                break;
+
+            case SDL_WINDOWEVENT_ENTER:
+                mfocused = true;
+                break;
+
+            case SDL_WINDOWEVENT_LEAVE:
+                mfocused = false;
                 break;
 
             case SDL_WINDOWEVENT_CLOSE:
@@ -171,7 +190,31 @@ void SDLWindow::render(){
 
     glClearColor(0.0, 0.0, 0.0, 1.0);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    glDrawElements(depthEnabled? GL_QUADS : GL_POINTS, indSize, GL_UNSIGNED_INT, NULL);
+    glDrawElements(GL_QUADS, indSize, GL_UNSIGNED_INT, NULL);
+    
+    glUseProgram(0);
+
+    SDL_GL_SwapWindow(window);
+}
+
+void SDLWindow::render2D(glm::mat4 refMVP){
+    SDL_GL_MakeCurrent(window, context);
+
+    glUseProgram(shaderProgram);
+
+    glLoadIdentity();
+    gluLookAt(0, 0, 0, 0, 0, -1, 0, 1, 0);
+    glRotatef(elevation, 1, 0, 0);
+    glRotatef(azimuth, 0, 1, 0);
+    glTranslatef(viewX, viewY, viewZ);
+
+    glm::mat4 mvp = getMVP() * glm::inverse(refMVP);
+    GLuint mvpLoc = glGetUniformLocation(shaderProgram, "mvp");
+    glUniformMatrix4fv(mvpLoc, 1, GL_FALSE, glm::value_ptr(mvp));
+
+    glClearColor(0.0, 0.0, 0.0, 1.0);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glDrawElements(GL_POINTS, indSize, GL_UNSIGNED_INT, NULL);
     
     glUseProgram(0);
 
@@ -194,6 +237,15 @@ void SDLWindow::setColors(GLfloat* colors, int size){
     glBufferData(GL_ARRAY_BUFFER, size * sizeof(GLfloat), colors, GL_STATIC_DRAW);
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
     glEnableVertexAttribArray(1);
+}
+
+void SDLWindow::setDepths(GLfloat* depths, int size){
+    SDL_GL_MakeCurrent(window, context);
+    glBindVertexArray(vao);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo[2]);
+    glBufferData(GL_ARRAY_BUFFER, size * sizeof(GLfloat), depths, GL_STATIC_DRAW);
+    glVertexAttribPointer(2, 1, GL_FLOAT, GL_FALSE, 0, 0);
+    glEnableVertexAttribArray(2);
 }
 
 void SDLWindow::setIndices(GLuint* indices, int size){
@@ -241,12 +293,16 @@ bool SDLWindow::isFocused(){
     return focused;
 }
 
+bool SDLWindow::isMouseFocused(){
+    return mfocused;
+}
+
 int SDLWindow::getWindowID(){
     return windowID;
 }
 
 bool SDLWindow::readColors(GLfloat* buf, size_t bufSize){
-    if (bufSize != 3 * sizeof(GLfloat) * width * height)
+    if (bufSize != sizeof(GLfloat) * 3 * width * height)
         return false;
 
     SDL_GL_MakeCurrent(window, context);
@@ -259,6 +315,27 @@ bool SDLWindow::readColors(GLfloat* buf, size_t bufSize){
     delete[] pixelRGB;
 
     return true;
+}
+
+bool SDLWindow::readDepths(GLfloat* buf, size_t bufSize){
+    if (bufSize != sizeof(GLfloat) * width * height)
+        return false;
+
+    SDL_GL_MakeCurrent(window, context);
+
+    glReadPixels(0, 0, width, height, GL_DEPTH_COMPONENT, GL_FLOAT, buf);
+
+    return true;
+}
+
+glm::mat4 SDLWindow::getMVP(){
+    SDL_GL_MakeCurrent(window, context);
+
+    glm::mat4 modelview;
+    glGetFloatv(GL_MODELVIEW_MATRIX, glm::value_ptr(modelview));
+    glm::mat4 projection;
+    glGetFloatv(GL_PROJECTION_MATRIX, glm::value_ptr(projection));
+    return projection * modelview;
 }
 
 GLuint SDLWindow::loadShaderFromFile(string filename, GLenum shaderType){
